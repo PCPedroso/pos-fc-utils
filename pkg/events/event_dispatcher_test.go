@@ -47,7 +47,7 @@ func (suite *EventDispatcherTestSuite) SetupTest() {
 	suite.handler1 = TestEventHandler{ID: 1}
 	suite.handler3 = TestEventHandler{ID: 3}
 
-	suite.event1 = TestEvent{Name: "test", Payload: "teste"}
+	suite.event1 = TestEvent{Name: "test1", Payload: "teste1"}
 	suite.event2 = TestEvent{Name: "test2", Payload: "teste2"}
 }
 
@@ -65,6 +65,40 @@ func (suite *EventDispatcherTestSuite) TestEventDispatcherRegister() {
 
 	assert.Equal(suite.T(), &suite.handler1, suite.eventDispatcher.handlers[suite.event1.GetName()][0])
 	assert.Equal(suite.T(), &suite.handler2, suite.eventDispatcher.handlers[suite.event1.GetName()][1])
+}
+
+// Testando eventos registrados em deplicidade
+func (suite *EventDispatcherTestSuite) TestEventDispatcherRegisterWithSameHandler() {
+	// Registra o handler1
+	err := suite.eventDispatcher.Register(suite.event1.GetName(), &suite.handler1)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event1.GetName()]))
+
+	// Registra novamente o handler1 e deve retornar o erro de evento já registrado
+	err = suite.eventDispatcher.Register(suite.event1.GetName(), &suite.handler1)
+	suite.Equal(ErrHandlerAlreadyRegistred, err)
+	// Ao final não deve registrar este segundo evento, e conter apenas um evento registrado
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event1.GetName()]))
+}
+
+// Limpando os Eventos
+func (suite *EventDispatcherTestSuite) TestEventDispatcherClear() {
+	// Event1
+	err := suite.eventDispatcher.Register(suite.event1.GetName(), &suite.handler1)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event1.GetName()]))
+
+	err = suite.eventDispatcher.Register(suite.event1.GetName(), &suite.handler2)
+	suite.Nil(err)
+	suite.Equal(2, len(suite.eventDispatcher.handlers[suite.event1.GetName()]))
+
+	// Event2
+	err = suite.eventDispatcher.Register(suite.event2.GetName(), &suite.handler1)
+	suite.Nil(err)
+	suite.Equal(1, len(suite.eventDispatcher.handlers[suite.event2.GetName()]))
+
+	suite.eventDispatcher.Clear()
+	suite.Equal(0, len(suite.eventDispatcher.handlers))
 }
 
 func TestSuite(t *testing.T) {
