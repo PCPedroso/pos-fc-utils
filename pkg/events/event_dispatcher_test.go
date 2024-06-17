@@ -1,6 +1,7 @@
 package events
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -44,7 +45,7 @@ type TestEventHandler struct {
 	ID int
 }
 
-func (h *TestEventHandler) Handle(event EventInterface) {}
+func (h *TestEventHandler) Handle(event EventInterface, wg *sync.WaitGroup) {}
 
 func (suite *EventDispatcherTestSuite) SetupTest() {
 	suite.eventDispatcher = NewEventDispatcher()
@@ -151,17 +152,28 @@ func (suite *EventDispatcherTestSuite) TestEventDispatcherRemove() {
 	assert.False(suite.T(), suite.eventDispatcher.Has(suite.event1.GetName(), &suite.handler3))
 }
 
-func (m *MockHandler) Handle(event EventInterface) {
+func (m *MockHandler) Handle(event EventInterface, wg *sync.WaitGroup) {
 	m.Called(event)
+	wg.Done()
 }
 
 func (suite *EventDispatcherTestSuite) TestEventDispatch() {
-	mh := &MockHandler{}
-	mh.On("Handle", &suite.event1)
-	suite.eventDispatcher.Register(suite.event1.GetName(), mh)
+	mh1 := &MockHandler{}
+	mh1.On("Handle", &suite.event1)
+
+	mh2 := &MockHandler{}
+	mh2.On("Handle", &suite.event1)
+
+	suite.eventDispatcher.Register(suite.event1.GetName(), mh1)
+	suite.eventDispatcher.Register(suite.event1.GetName(), mh2)
+
 	suite.eventDispatcher.Dispatch(&suite.event1)
-	mh.AssertExpectations(suite.T())
-	mh.AssertNumberOfCalls(suite.T(), "Handle", 1)
+
+	mh1.AssertExpectations(suite.T())
+	mh2.AssertExpectations(suite.T())
+
+	mh1.AssertNumberOfCalls(suite.T(), "Handle", 1)
+	mh2.AssertNumberOfCalls(suite.T(), "Handle", 1)
 }
 
 func TestSuite(t *testing.T) {
